@@ -1,7 +1,7 @@
 FROM rust:stretch as build
 WORKDIR /usr/src/dumbot
 COPY . .
-RUN cargo install --path . --root .
+RUN cargo --color never install --path . --root .
 
 FROM debian:stretch
 RUN apt-get update && apt-get install -y \
