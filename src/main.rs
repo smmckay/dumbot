@@ -15,6 +15,8 @@ struct Handler {
 
 impl EventHandler for Handler {
     fn message(&self, _: Context, msg: Message) {
+        debug!("{}", msg.content.as_str());
+
         if let Some(captures) = self.im_re.captures(msg.content.as_str()) {
             let new_nick = captures.get(1).unwrap().as_str();
             msg.guild_id.map(|gid|
