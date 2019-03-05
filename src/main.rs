@@ -15,7 +15,7 @@ use std::env;
 use std::time::Instant;
 
 struct Handler {
-    im_cooldown: u64,
+    im_cooldown_secs: u64,
     im_chance_percent: u32,
     im_re: Regex,
     im_last_activity: CHashMap<u64, Instant>,
@@ -47,13 +47,13 @@ impl EventHandler for Handler {
 }
 
 impl Handler {
-    fn new() -> Handler {
+    fn new(im_cooldown_secs: u64, im_chance_percent: u32) -> Handler {
         Handler {
-            im_cooldown: 3600,
-            im_chance_percent: 25,
+            im_cooldown_secs,
+            im_chance_percent,
             im_re: Regex::new("^\\s*(?i:i\\pPm|i\\s+am|im)\\s+([^.]+)").unwrap(),
             im_last_activity: CHashMap::new(),
-            start: Instant::now()
+            start: Instant::now() - std::time::Duration::from_secs(im_cooldown_secs)
         }
     }
 
@@ -73,7 +73,7 @@ impl Handler {
             None => self.start
         };
 
-        if Instant::now().duration_since(last_nick_change).as_secs() < self.im_cooldown {
+        if Instant::now().duration_since(last_nick_change).as_secs() < self.im_cooldown_secs {
             return None
         }
 
@@ -106,7 +106,15 @@ fn main() {
     let token = env::var("DISCORD_TOKEN")
         .expect("Expected a token in the environment variable DISCORD_TOKEN");
 
-    let mut client = match Client::new(&token, Handler::new())  {
+    let im_cooldown_secs: u64 = env::var("IM_COOLDOWN_SECS")
+        .unwrap_or("3600".to_owned())
+        .parse().unwrap();
+    let im_chance_percent: u32 = env::var("IM_CHANCE_PERCENT")
+        .unwrap_or("25".to_owned())
+        .parse().unwrap();
+    let handler = Handler::new(im_cooldown_secs, im_chance_percent);
+
+    let mut client = match Client::new(&token, handler)  {
         Err(why) => panic!("Client error: {:?}", why),
         Ok(client) => client
     };
