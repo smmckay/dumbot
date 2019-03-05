@@ -8,12 +8,12 @@ use std::env;
 use regex::Regex;
 
 struct Handler {
-    re: Regex
+    im_re: Regex
 }
 
 impl serenity::client::EventHandler for Handler {
     fn message(&self, _: serenity::client::Context, msg: serenity::model::channel::Message) {
-        if let Some(captures) = self.re.captures(msg.content.as_str()) {
+        if let Some(captures) = self.im_re.captures(msg.content.as_str()) {
             let new_nick = captures.get(1).unwrap().as_str();
             msg.guild_id.map(|gid|
                 if let Err(why) = gid.edit_member(msg.author.id, |m| m.nickname(new_nick)) {
@@ -35,7 +35,7 @@ impl serenity::client::EventHandler for Handler {
 impl Handler {
     fn new() -> Handler {
         Handler {
-            re: Regex::new("^(?i:i'm|i am|im) (.*)").unwrap()
+            im_re: Regex::new("^\\s*(?i:i\\pPm|i\\s+am|im)\\s+([^.]+)").unwrap()
         }
     }
 }
