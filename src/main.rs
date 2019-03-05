@@ -1,18 +1,20 @@
 #[macro_use] extern crate log;
-extern crate regex;
-
 extern crate log4rs;
+extern crate regex;
 extern crate serenity;
 
-use std::env;
 use regex::Regex;
+use serenity::client::EventHandler;
+use serenity::model::{gateway::Ready, channel::Message};
+use serenity::prelude::{Context, Client};
+use std::env;
 
 struct Handler {
     im_re: Regex
 }
 
-impl serenity::client::EventHandler for Handler {
-    fn message(&self, _: serenity::client::Context, msg: serenity::model::channel::Message) {
+impl EventHandler for Handler {
+    fn message(&self, _: Context, msg: Message) {
         if let Some(captures) = self.im_re.captures(msg.content.as_str()) {
             let new_nick = captures.get(1).unwrap().as_str();
             msg.guild_id.map(|gid|
@@ -27,7 +29,7 @@ impl serenity::client::EventHandler for Handler {
         }
     }
 
-    fn ready(&self, _: serenity::client::Context, ready: serenity::model::gateway::Ready) {
+    fn ready(&self, _: Context, ready: Ready) {
         info!("{} is connected!", ready.user.name);
     }
 }
@@ -63,18 +65,11 @@ fn main() {
     let token = env::var("DISCORD_TOKEN")
         .expect("Expected a token in the environment variable DISCORD_TOKEN");
 
-    // Create a new instance of the Client, logging in as a bot. This will
-    // automatically prepend your bot token with "Bot ", which is a requirement
-    // by Discord for bot users.
-    let mut client = match serenity::client::Client::new(&token, Handler::new())  {
+    let mut client = match Client::new(&token, Handler::new())  {
         Err(why) => panic!("Client error: {:?}", why),
         Ok(client) => client
     };
 
-    // Finally, start a single shard, and start listening to events.
-    //
-    // Shards will automatically attempt to reconnect, and will perform
-    // exponential backoff until it reconnects.
     if let Err(why) = client.start() {
         println!("Client error: {:?}", why);
     }
