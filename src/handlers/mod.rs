@@ -24,7 +24,9 @@ impl Chain {
 
 impl Framework for Chain {
     fn dispatch(&mut self, ctx: Context, msg: Message, pool: &ThreadPool) {
-        debug!("{}", msg.content.as_str());
+        if msg.content.len() > 0 {
+            debug!("{}", msg.content.as_str());
+        }
         for child in self.children.iter() {
             if child.message(&ctx, &msg, pool) {
                 return
