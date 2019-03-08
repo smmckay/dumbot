@@ -11,11 +11,16 @@ pub struct Handler {
 }
 
 impl MessageHandler for Handler {
-    fn message(&self, _: &Context, msg: &Message, _: &ThreadPool) {
+    fn message(&self, _: &Context, msg: &Message, _: &ThreadPool) -> bool {
         if self.re.is_match(msg.content.as_str()) {
             let idx = rand::thread_rng().gen_range(0, self.jokes.len());
             let text = self.jokes.get(idx).unwrap();
-            msg.channel_id.send_message(|m| m.content(text));
+            if let Err(why) = msg.channel_id.send_message(|m| m.content(text)) {
+                warn!("Msg send failed: {:?}", why)
+            }
+            true
+        } else {
+            false
         }
     }
 }

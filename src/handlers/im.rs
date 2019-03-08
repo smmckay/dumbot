@@ -16,9 +16,7 @@ pub struct Handler {
 }
 
 impl MessageHandler for Handler {
-    fn message(&self, _: &Context, msg: &Message, _: &ThreadPool) {
-        debug!("{}", msg.content.as_str());
-
+    fn message(&self, _: &Context, msg: &Message, _: &ThreadPool) -> bool {
         if let Some(new_nick) = self.get_new_nick(&msg) {
             msg.guild_id.map(|gid|
                 if let Err(why) = gid.edit_member(msg.author.id, |m| m.nickname(new_nick)) {
@@ -31,6 +29,9 @@ impl MessageHandler for Handler {
             }
 
             self.im_last_activity.insert(msg.guild_id.unwrap().0, Instant::now());
+            true
+        } else {
+            false
         }
     }
 }

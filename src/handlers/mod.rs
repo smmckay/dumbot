@@ -7,7 +7,7 @@ pub mod dadjoke;
 pub mod im;
 
 pub trait MessageHandler {
-    fn message(&self, ctx: &Context, msg: &Message, pool: &ThreadPool);
+    fn message(&self, ctx: &Context, msg: &Message, pool: &ThreadPool) -> bool;
 }
 
 pub struct Chain {
@@ -24,8 +24,11 @@ impl Chain {
 
 impl Framework for Chain {
     fn dispatch(&mut self, ctx: Context, msg: Message, pool: &ThreadPool) {
+        debug!("{}", msg.content.as_str());
         for child in self.children.iter() {
-            child.message(&ctx, &msg, pool)
+            if child.message(&ctx, &msg, pool) {
+                return
+            }
         }
     }
 }
