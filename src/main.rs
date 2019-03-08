@@ -5,83 +5,13 @@ extern crate rand;
 extern crate regex;
 extern crate serenity;
 
-use chashmap::CHashMap;
-use rand::Rng;
-use regex::Regex;
-use serenity::client::EventHandler;
-use serenity::model::{gateway::Ready, channel::Message};
-use serenity::prelude::{Context, Client};
 use std::env;
-use std::time::Instant;
+use serenity::Client;
+use serenity::prelude::EventHandler;
+use serenity::client::Context;
+use serenity::model::gateway::Ready;
 
-struct Handler {
-    im_cooldown_secs: u64,
-    im_chance_percent: u32,
-    im_re: Regex,
-    im_last_activity: CHashMap<u64, Instant>,
-    start: std::time::Instant
-}
-
-impl EventHandler for Handler {
-    fn message(&self, _: Context, msg: Message) {
-        debug!("{}", msg.content.as_str());
-
-        if let Some(new_nick) = self.get_new_nick(&msg) {
-            msg.guild_id.map(|gid|
-                if let Err(why) = gid.edit_member(msg.author.id, |m| m.nickname(new_nick)) {
-                    warn!("Unable to update {}: {:?}", msg.author.id, why)
-                }
-            );
-
-            if let Err(why) = msg.channel_id.send_message(|m| m.content(format!("Hi {}, I'm Dumbot!", new_nick))) {
-                warn!("Msg send failed: {:?}", why)
-            }
-
-            self.im_last_activity.insert(msg.guild_id.unwrap().0, Instant::now());
-        }
-    }
-
-    fn ready(&self, _: Context, ready: Ready) {
-        info!("{} is connected!", ready.user.name);
-    }
-}
-
-impl Handler {
-    fn new(im_cooldown_secs: u64, im_chance_percent: u32) -> Handler {
-        Handler {
-            im_cooldown_secs,
-            im_chance_percent,
-            im_re: Regex::new("^\\s*(?i:i\\pPm|i\\s+am|im)\\s+([^.]+)").unwrap(),
-            im_last_activity: CHashMap::new(),
-            start: Instant::now() - std::time::Duration::from_secs(im_cooldown_secs)
-        }
-    }
-
-    fn get_new_nick<'a>(&self, msg: &'a Message) -> Option<&'a str> {
-        if rand::thread_rng().gen_range(0, 100) >= self.im_chance_percent {
-           return None
-        }
-
-        if msg.guild_id.is_none() {
-            return None
-        }
-
-        let gid = msg.guild_id.unwrap().0;
-
-        let last_nick_change = match self.im_last_activity.get(&gid) {
-            Some(v) => v.clone(),
-            None => self.start
-        };
-
-        if Instant::now().duration_since(last_nick_change).as_secs() < self.im_cooldown_secs {
-            return None
-        }
-
-        self.im_re.captures(msg.content.as_str())
-            .and_then(|captures| captures.get(1))
-            .map(|m| m.as_str())
-    }
-}
+mod handlers;
 
 fn init_logging() {
     let console_appender = log4rs::append::console::ConsoleAppender::builder()
@@ -99,6 +29,14 @@ fn init_logging() {
     log4rs::init_config(config).expect("Failed logger init");
 }
 
+struct Handler;
+
+impl EventHandler for Handler {
+    fn ready(&self, _: Context, ready: Ready) {
+        info!("{} is connected!", ready.user.name);
+    }
+}
+
 fn main() {
     init_logging();
 
@@ -112,12 +50,18 @@ fn main() {
     let im_chance_percent: u32 = env::var("IM_CHANCE_PERCENT")
         .unwrap_or("25".to_owned())
         .parse().unwrap();
-    let handler = Handler::new(im_cooldown_secs, im_chance_percent);
+    let im_handler = handlers::im::Handler::new(im_cooldown_secs, im_chance_percent);
+    let dadjoke_handler = handlers::dadjoke::Handler::new();
+    let handler_chain = handlers::Chain::new(vec![
+        Box::new(im_handler),
+        Box::new(dadjoke_handler)
+    ]);
 
-    let mut client = match Client::new(&token, handler)  {
+    let mut client = match Client::new(&token, Handler)  {
         Err(why) => panic!("Client error: {:?}", why),
         Ok(client) => client
     };
+    client.with_framework(handler_chain);
 
     if let Err(why) = client.start() {
         println!("Client error: {:?}", why);
