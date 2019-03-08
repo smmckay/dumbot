@@ -38,10 +38,9 @@ impl MessageHandler for Handler {
 
             pool.execute(move || {
                 if let Err(why) = (|| -> Result<(), SerenityError> {
-                    let delay: u64 = rand::thread_rng().gen_range(500, 1500);
-                    send_msg_after_delay(channel, delay, &joke.setup)?;
+                    send_msg_after_delay(channel, (joke.setup.len() * 50) as u64, &joke.setup)?;
                     if joke.punchline.len() > 0 {
-                        send_msg_after_delay(channel, delay, &joke.punchline)?;
+                        send_msg_after_delay(channel, 2000, &joke.punchline)?;
                     }
                     Ok(())
                 })() {
