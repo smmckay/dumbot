@@ -11,20 +11,20 @@ use serenity::prelude::SerenityError;
 
 pub struct Handler {
     re: Regex,
-    jokes: Vec<Joke>
+    jokes: Vec<Joke>,
 }
 
 #[derive(Clone)]
 struct Joke {
     setup: String,
-    punchline: String
+    punchline: String,
 }
 
 impl Joke {
     fn new(setup: &str, punchline: &str) -> Joke {
         Joke {
             setup: setup.to_owned(),
-            punchline: punchline.to_owned()
+            punchline: punchline.to_owned(),
         }
     }
 }
@@ -37,15 +37,17 @@ impl MessageHandler for Handler {
             let joke = self.jokes.get(idx).unwrap().clone();
 
             pool.execute(move || {
-                if let Err(why) = (|| -> Result<(), SerenityError> {
-                    send_msg_after_delay(channel, (joke.setup.len() * 50) as u64, &joke.setup)?;
-                    if joke.punchline.len() > 0 {
-                        send_msg_after_delay(channel, 2000, &joke.punchline)?;
-                    }
-                    Ok(())
-                })() {
-                    warn!("API call failed: {:?}", why);
-                }
+                send_msg_after_delay(channel, (joke.setup.len() * 50) as u64, &joke.setup)
+                    .and_then(|_| {
+                        if joke.punchline.len() == 0 {
+                            Ok(())
+                        } else {
+                            send_msg_after_delay(channel, 2000, &joke.punchline)
+                        }
+                    })
+                    .err().iter().for_each(|why| {
+                        warn!("API call failed: {:?}", why);
+                    });
             });
 
             true
@@ -100,7 +102,7 @@ impl Handler {
                 Joke::new("Did I tell you the time I fell in love during a backflip?", "I was heels over head."),
                 Joke::new("I don’t play soccer because I enjoy the sport.", "I’m just doing it for kicks."),
                 Joke::new("People don’t like having to bend over to get their drinks.", "We really need to raise the bar.")
-            ]
+            ],
         }
     }
 }
