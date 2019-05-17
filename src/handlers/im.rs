@@ -69,6 +69,14 @@ impl Handler {
 
         self.im_re.captures(msg.content.as_str())
             .and_then(|captures| captures.get(1))
-            .map(|m| m.as_str())
+            .map(|m| {
+                let s = m.as_str();
+                if s.chars().count() <= 32 {
+                    s
+                } else {
+                    let substr_end = s.char_indices().take(32).last().unwrap().0;
+                    &s[..substr_end]
+                }
+            })
     }
 }
